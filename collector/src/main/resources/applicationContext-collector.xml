@@ -20,6 +20,7 @@
                         com.navercorp.pinpoint.collector.mapper,
                         com.navercorp.pinpoint.collector.util,
                         com.navercorp.pinpoint.collector.service,
+                        com.navercorp.pinpoint.collector.rabbit,
                         com.navercorp.pinpoint.common.server.bo.codec,
                         com.navercorp.pinpoint.common.server.util,
                         com.navercorp.pinpoint.common.server.bo" />
@@ -36,6 +37,7 @@
                 <value>classpath:profiles/${pinpoint.profiles.active}/pinpoint-collector-env.properties</value>
                 <value>classpath:profiles/${pinpoint.profiles.active}/pinpoint-collector-grpc-env.properties</value>
                 <value>classpath:profiles/${pinpoint.profiles.active}/jdbc-env.properties</value>
+                <value>classpath:profiles/${pinpoint.profiles.active}/rabbitmq-env.properties</value>
                 <!-- external property for override -->
                 <value>file:#{ systemProperties['pinpoint.collector.config.location'] ?: '-Dpinpoint.collector.config.location does not set' }</value>
             </list>
@@ -59,6 +61,7 @@
     <import resource="classpath:applicationContext-collector-hbase.xml"/>
     <import resource="classpath:applicationContext-collector-namespace.xml"/>
     <import resource="classpath:applicationContext-collector-flink.xml"/>
+    <!--    <import resource="classpath:applicationContext-collector-rabbitmq.xml"/>-->
 
     <util:list id="cachedStatisticsDaoList" value-type="com.navercorp.pinpoint.collector.dao.CachedStatisticsDao">
         <beans:ref bean="hbaseMapStatisticsCallerDao"/>
