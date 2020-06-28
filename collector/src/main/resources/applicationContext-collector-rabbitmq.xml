@@ -1,0 +1,49 @@
+<!--<beans xmlns="http://www.springframework.org/schema/beans"-->
+<!--       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"-->
+<!--       xmlns:rabbit="http://www.springframework.org/schema/rabbit"-->
+<!--       xsi:schemaLocation="http://www.springframework.org/schema/beans-->
+<!--    http://www.springframework.org/schema/beans/spring-beans-4.3.xsd-->
+<!--    http://www.springframework.org/schema/rabbit-->
+<!--    http://www.springframework.org/schema/rabbit/spring-rabbit-1.7.xsd" >-->
+
+<!--    <description>rabbitmq 连接服务配置</description>-->
+
+<!--    &lt;!&ndash; 连接配置 &ndash;&gt;-->
+<!--    <rabbit:connection-factory id="rabbitConnectionFactory" host="${rabbitmq.host}" username="${rabbitmq.username}" password="${rabbitmq.password}" port="${rabbitmq.port}"  virtual-host="${rabbitmq.vhost}"/>-->
+<!--    <rabbit:admin connection-factory="rabbitConnectionFactory"/>-->
+
+<!--    &lt;!&ndash; spring template声明&ndash;&gt;-->
+<!--    <rabbit:template exchange="pinpoint" id="rabbitTemplate" routing-key="pinpoint.span.data.key" connection-factory="rabbitConnectionFactory"  message-converter="jsonMessageConverter" />-->
+
+<!--    &lt;!&ndash; 消息对象json转换类 &ndash;&gt;-->
+<!--    <bean id="jsonMessageConverter" class="org.springframework.amqp.support.converter.Jackson2JsonMessageConverter" />-->
+<!--    &lt;!&ndash;-->
+<!--        durable:是否持久化-->
+<!--        exclusive: 仅创建者可以使用的私有队列，断开后自动删除-->
+<!--        auto_delete: 当所有消费客户端连接断开后，是否自动删除队列-->
+<!--     &ndash;&gt;-->
+
+<!--    &lt;!&ndash;  申明一个消息队列Queue   &ndash;&gt;-->
+<!--    <rabbit:queue id="pinpoint.span.data" name="pinpoint.span.data" durable="true" auto-delete="false" exclusive="false" />-->
+<!--    &lt;!&ndash;-->
+<!--     rabbit:direct-exchange：定义exchange模式为direct，意思就是消息与一个特定的路由键完全匹配，才会转发。-->
+<!--    rabbit:binding：设置消息queue匹配的key-->
+<!--     &ndash;&gt;-->
+
+<!--    &lt;!&ndash; 交换机定义 &ndash;&gt;-->
+<!--    <rabbit:direct-exchange name="pinpoint" durable="true" auto-delete="false" id="pinpoint">-->
+<!--        <rabbit:bindings>-->
+<!--            <rabbit:binding queue="pinpoint.span.data" key="pinpoint.span.data.key"/>-->
+<!--        </rabbit:bindings>-->
+<!--    </rabbit:direct-exchange>-->
+
+<!--    &lt;!&ndash;-->
+<!--         queues：监听的队列，多个的话用逗号（,）分隔-->
+<!--        ref：监听器-->
+<!--     &ndash;&gt;-->
+<!--    &lt;!&ndash; 配置监听  acknowledeg = "manual"   设置手动应答  当消息处理失败时:会一直重发  直到消息处理成功 &ndash;&gt;-->
+<!--    <rabbit:listener-container connection-factory="rabbitConnectionFactory" acknowledge="manual">-->
+<!--        &lt;!&ndash; 配置监听器 &ndash;&gt;-->
+<!--        <rabbit:listener queues="pinpoint.span.data" ref="pinpointConsumer"/>-->
+<!--    </rabbit:listener-container>-->
+<!--</beans>-->

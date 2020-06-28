@@ -19,6 +19,7 @@ package com.navercorp.pinpoint.collector.service;
 import com.navercorp.pinpoint.collector.dao.ApplicationTraceIndexDao;
 import com.navercorp.pinpoint.collector.dao.HostApplicationMapDao;
 import com.navercorp.pinpoint.collector.dao.TraceDao;
+import com.navercorp.pinpoint.collector.rabbit.PinpointProducer;
 import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.server.bo.SpanChunkBo;
 import com.navercorp.pinpoint.common.server.bo.SpanEventBo;
@@ -46,13 +47,16 @@ public class TraceService {
 
     private final ServiceTypeRegistryService registry;
 
+    private final PinpointProducer pinpointProducer;
+
     public TraceService(TraceDao traceDao, ApplicationTraceIndexDao applicationTraceIndexDao, HostApplicationMapDao hostApplicationMapDao,
-                        StatisticsService statisticsService, ServiceTypeRegistryService registry) {
+                        StatisticsService statisticsService, ServiceTypeRegistryService registry, PinpointProducer pinpointProducer) {
         this.traceDao = Objects.requireNonNull(traceDao, "traceDao");
         this.applicationTraceIndexDao = Objects.requireNonNull(applicationTraceIndexDao, "applicationTraceIndexDao");
         this.hostApplicationMapDao = Objects.requireNonNull(hostApplicationMapDao, "hostApplicationMapDao");
         this.statisticsService = Objects.requireNonNull(statisticsService, "statisticsService");
         this.registry = Objects.requireNonNull(registry, "registry");
+        this.pinpointProducer = Objects.requireNonNull(pinpointProducer, "pinpointProducer");
     }
 
     public void insertSpanChunk(final SpanChunkBo spanChunkBo) {
@@ -71,6 +75,14 @@ public class TraceService {
     }
 
     public void insertSpan(final SpanBo spanBo) {
+        logger.warn("********打印监控数据********");
+        logger.warn(spanBo.toString());
+        try {
+            pinpointProducer.sendProducer(spanBo.toString());
+        } catch (Exception e) {
+            logger.error("发送mq消息失败！");
+        }
+
         traceDao.insert(spanBo);
         applicationTraceIndexDao.insert(spanBo);
         insertAcceptorHost(spanBo);

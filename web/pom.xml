@@ -369,6 +369,10 @@
                     <installDirectory>${project.parent.basedir}/${plugin.frontend.node.install.dir}</installDirectory>
                     <workingDirectory>${basedir}/src/main/angular</workingDirectory>
                     <skip>${build.frontend.skip}</skip>
+                    <!-- 若不方便访问官网，可使用国内淘宝镜像-->
+                    <nodeDownloadRoot>https://npm.taobao.org/mirrors/node/</nodeDownloadRoot>
+                    <npmDownloadRoot>https://registry.npm.taobao.org</npmDownloadRoot>
+
                 </configuration>
                 <executions>
                     <execution>
@@ -389,6 +393,7 @@
                             <goal>npm</goal>
                         </goals>
                         <configuration>
+                            <npmRegistryURL>https://registry.npm.taobao.org</npmRegistryURL>
                             <arguments>install</arguments>
                         </configuration>
                     </execution>
@@ -461,7 +466,8 @@
                                 <configuration>
                                     <filesets>
                                         <fileset>
-                                            <directory>${project.parent.basedir}/${plugin.frontend.node.install.dir}</directory>
+                                            <directory>${project.parent.basedir}/${plugin.frontend.node.install.dir}
+                                            </directory>
                                             <includes>
                                                 <include>**</include>
                                             </includes>
