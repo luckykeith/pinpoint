@@ -16,10 +16,13 @@
 
 package com.navercorp.pinpoint.collector.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.pinpoint.collector.dao.ApplicationTraceIndexDao;
 import com.navercorp.pinpoint.collector.dao.HostApplicationMapDao;
 import com.navercorp.pinpoint.collector.dao.TraceDao;
 import com.navercorp.pinpoint.collector.rabbit.PinpointProducer;
+import com.navercorp.pinpoint.common.profiler.util.TransactionId;
 import com.navercorp.pinpoint.common.server.bo.SpanBo;
 import com.navercorp.pinpoint.common.server.bo.SpanChunkBo;
 import com.navercorp.pinpoint.common.server.bo.SpanEventBo;
@@ -28,10 +31,16 @@ import com.navercorp.pinpoint.loader.service.ServiceTypeRegistryService;
 import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class TraceService {
@@ -48,6 +57,10 @@ public class TraceService {
     private final ServiceTypeRegistryService registry;
 
     private final PinpointProducer pinpointProducer;
+
+    //线程池
+    private static ThreadPoolExecutor treadPool =
+            new ThreadPoolExecutor(5, 10, 5, TimeUnit.MINUTES, new LinkedBlockingDeque<>(), new ThreadPoolExecutor.AbortPolicy());
 
     public TraceService(TraceDao traceDao, ApplicationTraceIndexDao applicationTraceIndexDao, HostApplicationMapDao hostApplicationMapDao,
                         StatisticsService statisticsService, ServiceTypeRegistryService registry, PinpointProducer pinpointProducer) {
@@ -75,19 +88,12 @@ public class TraceService {
     }
 
     public void insertSpan(final SpanBo spanBo) {
-        logger.warn("********打印监控数据********");
-        logger.warn(spanBo.toString());
-        try {
-            pinpointProducer.sendProducer(spanBo.toString());
-        } catch (Exception e) {
-            logger.error("发送mq消息失败！");
-        }
-
         traceDao.insert(spanBo);
         applicationTraceIndexDao.insert(spanBo);
         insertAcceptorHost(spanBo);
         insertSpanStat(spanBo);
         insertSpanEventStat(spanBo);
+        sendSpanBoToMq(spanBo);
     }
 
     private void insertAcceptorHost(SpanEventBo spanEvent, String applicationId, ServiceType serviceType) {
@@ -255,5 +261,52 @@ public class TraceService {
             return false;
         }
         return true;
+    }
+
+    /**
+     * 把SpanBo数据发送到mq中，以 接口 为维度，做报警通知
+     *
+     * @param spanBo
+     */
+    private void sendSpanBoToMq(SpanBo spanBo) {
+        treadPool.execute(() -> {
+            if (spanBo.getRpc() == null || spanBo.getRpc().length() <= 0 ||
+                    spanBo.getElapsed() <= 0) {
+                return;
+            }
+            Map<String, Object> m = new HashMap();
+            TransactionId transactionId = spanBo.getTransactionId();
+            String traceId = transactionId.getAgentId() + "^" +
+                    transactionId.getAgentStartTime() + "^" + transactionId.getTransactionSequence();
+            m.put("sysName", spanBo.getApplicationId());                    //系统名称 例：yxp_golang_esproxy
+            m.put("agentId", spanBo.getAgentId());                    //系统名称 例：yxp_golang_esproxy
+            m.put("traceId", traceId);                                      //主键，反查用
+            m.put("rpc", spanBo.getRpc());     //业务类型 接口或业务名称
+            m.put("costTime", spanBo.getElapsed());                 //总耗时
+            m.put("clientIp", spanBo.getEndPoint());                //客户端ip
+            m.put("logTime", spanBo.getStartTime() + "");             //记录时间
+            m.put("error", spanBo.getErrCode());                    //1代表错误
+            if (spanBo.hasException()) {
+                m.put("errorMsg", spanBo.getExceptionMessage());        //错误信息
+            } else {
+                spanBo.getSpanEventBoList().
+                        stream().
+                        filter(p -> p.hasException()).//保留有错误的
+                        findFirst().        //返回第一个
+                        ifPresent(u -> m.put("errorMsg", u.getExceptionMessage()));
+            }
+            logger.debug("mq object{}", m);
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                String jsonStr = mapper.writeValueAsString(m);
+                logger.debug("********打印监控数据********");
+                logger.debug(jsonStr);
+                pinpointProducer.sendProducer(jsonStr);
+            } catch (AmqpException ae) {
+                logger.error("sendSpanBoToMq method unknow error ", ae);
+            } catch (JsonProcessingException e) {
+                logger.error("json parse error ", e);
+            }
+        });
     }
 }

@@ -1,5 +1,6 @@
 package com.navercorp.pinpoint.collector.rabbit;
 
+import com.navercorp.pinpoint.collector.rabbit.config.RabbitMQConfig;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
@@ -13,9 +14,11 @@ import org.springframework.stereotype.Component;
  */
 @Component("pinpointProducer")
 public class PinpointProducer {
+    private final RabbitMQConfig rabbitMQConfig;
     private final RabbitTemplate rabbitTemplate;
 
-    public PinpointProducer(RabbitTemplate rabbitTemplate) {
+    public PinpointProducer(RabbitMQConfig rabbitMQConfig, RabbitTemplate rabbitTemplate) {
+        this.rabbitMQConfig = rabbitMQConfig;
         this.rabbitTemplate = rabbitTemplate;
     }
 
@@ -24,6 +27,6 @@ public class PinpointProducer {
         // rabbitTemplate.convertAndSend(message);
 
         // 生产者往solutionInfo_exchange这个交换机，这个info_queue_key路由中发送消息
-        rabbitTemplate.convertAndSend("pinpoint", "pinpoint.span.data.key", message);
+        rabbitTemplate.convertAndSend(rabbitMQConfig.getExchangeName(), rabbitMQConfig.getRoutingKey(), message);
     }
 }
